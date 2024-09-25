@@ -65,12 +65,48 @@ DeviceProcessEvents
 ```
 This query captures the use of systeminfo.exe, which gives attackers key information about the system environment.
 
-
-
 ### 2. Credential Harvesting
 
-- Watch for in-memory credential extraction (ps “antivirus” | kill or using Mimikatz-like behaviour).
-- Monitor for domain admin credentials harvesting with PowerShell and cmd-based tools.
+To detect credential harvesting attempts, such as in-memory credential extraction using malicious tools (e.g., Mimikatz) or suspicious behaviour (e.g., killing antivirus processes)
+
+a) Attackers often try to disable antivirus software to evade detection before extracting credentials. This query looks for process termination attempts (especially those targeting security tools).
+
+```
+DeviceProcessEvents
+| where FileName == "taskkill.exe" or FileName == "powershell.exe"  // Common tools used to kill processes
+| extend CommandLineLower = tolower(CommandLine)
+| where CommandLineLower contains "antivirus" or CommandLineLower contains "security"
+| where CommandLineLower contains "/f" or CommandLineLower contains "kill"  // Forced termination
+| project Timestamp, DeviceName, InitiatingProcessAccountName, FileName, CommandLine
+```
+This query tracks commands attempting to kill processes related to antivirus or security software using taskkill, PowerShell, or similar tools.
+
+
+b) Detecting Mimikatz-Like Behaviour
+
+Mimikatz is a widely known tool used to extract credentials from memory. It often uses certain signature commands and functions, such as sekurlsa::logonpasswords and lsadump::sam, or attempts to manipulate LSASS.exe.
+
+```
+DeviceProcessEvents
+| where FileName in ("mimikatz.exe", "powershell.exe")  // Mimikatz or PowerShell being used to load similar functions
+| extend CommandLineLower = tolower(CommandLine)
+| where CommandLineLower contains "sekurlsa::logonpasswords" or CommandLineLower contains "lsadump::sam"
+or CommandLineLower contains "lsass"  // LSASS process manipulation
+| project Timestamp, DeviceName, InitiatingProcessAccountName, FileName, CommandLine
+```
+
+c) Detecting Suspicious PowerShell Commands
+PowerShell is often used in memory attacks to run malicious scripts for credential harvesting without writing binaries to disk.
+
+```
+DeviceProcessEvents
+| where FileName == "powershell.exe"
+| extend CommandLineLower = tolower(CommandLine)
+| where CommandLineLower contains "invoke-mimikatz" or CommandLineLower contains "get-credential"
+or CommandLineLower contains "dumpcreds" or CommandLineLower contains "memory"  // Common Mimikatz-like activity
+| project Timestamp, DeviceName, InitiatingProcessAccountName, FileName, CommandLine
+```
+This query tracks PowerShell commands related to credential harvesting attempts.
 
 ### 3. Active Directory Reconnaissance
 
@@ -126,8 +162,8 @@ DeviceProcessEvents
 This query tracks the use of PowerShell and other tools like SharpHound (the BloodHound ingestor) for querying domain information such as domain admins, DCs, or other AD objects.
 
 
-### 4.SSH/RDP/SMB Detection
-- Monitor abnormal SSH, RDP, and SMB file share access logs, especially from non-trusted sources.
+### 4. SSH/RDP/SMB Detection
+Monitor abnormal SSH, RDP, and SMB file share access logs, especially from non-trusted sources.
 
 a) Monitoring SSH Access
 
@@ -169,32 +205,6 @@ DeviceNetworkEvents
 | project Timestamp, DeviceName, RemoteIP, InitiatingProcessAccountName, FileName, ActionType, RemotePort
 ```
 This query tracks SMB file share access and flags it if the access comes from non-trusted sources.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ### 5. Ransomware/Destructware Identification
@@ -317,6 +327,32 @@ DeviceNetworkEvents
 | project Timestamp, DeviceName, RemoteIP, InitiatingProcessAccountName, FileName, RemotePort, ActionType, Protocol
 
 ```
+
+-Detect Credential Harvesting
+
+```
+DeviceProcessEvents
+| where FileName in ("taskkill.exe", "powershell.exe", "mimikatz.exe")
+| extend CommandLineLower = tolower(CommandLine)
+// Detect attempts to kill antivirus
+| where (FileName == "taskkill.exe" or FileName == "powershell.exe") 
+and (CommandLineLower contains "antivirus" or CommandLineLower contains "security")
+and (CommandLineLower contains "/f" or CommandLineLower contains "kill")
+// Detect Mimikatz usage or LSASS manipulation
+or (FileName == "mimikatz.exe" and (CommandLineLower contains "sekurlsa::logonpasswords" or CommandLineLower contains "lsadump::sam" or CommandLineLower contains "lsass"))
+// Detect suspicious PowerShell behaviour
+or (FileName == "powershell.exe" and (CommandLineLower contains "invoke-mimikatz" or CommandLineLower contains "get-credential" or CommandLineLower contains "dumpcreds" or CommandLineLower contains "memory"))
+| project Timestamp, DeviceName, InitiatingProcessAccountName, FileName, CommandLine
+
+```
+
+
+
+
+
+
+
+
 
 
 ### References
