@@ -77,7 +77,7 @@ This query captures the use of systeminfo.exe, which gives attackers key informa
 Monitor for Active Directory Reconnaissance activities such as querying for Domain Controllers, Domain Admins, and other privileged information. Below are queries to track key commands like Net GROUP "Domain Admins", Computername /DCLIST, NetSess.exe.
 
 a) Detecting Net GROUP "Domain Admins" Command Execution
-- This command is used by attackers to list all domain admins, which can provide valuable targets for privilege escalation.
+This command is used by attackers to list all domain admins, which can provide valuable targets for privilege escalation.
 
 ```
   DeviceProcessEvents
@@ -90,7 +90,7 @@ a) Detecting Net GROUP "Domain Admins" Command Execution
 This query identifies the execution of net.exe with the group and domain admins parameters to detect attempts to enumerate domain admins.
 
 b) Detecting Computername /DCLIST Command Execution
-- The Computername /DCLIST command is used to list Domain Controllers (DCs) in the network, a critical piece of information for an attacker during lateral movement.
+The Computername /DCLIST command is used to list Domain Controllers (DCs) in the network, a critical piece of information for an attacker during lateral movement.
 
 ```
 DeviceProcessEvents
