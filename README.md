@@ -328,7 +328,7 @@ DeviceNetworkEvents
 
 ```
 
--Detect Credential Harvesting
+- Detect Credential Monitoring
 
 ```
 DeviceProcessEvents
