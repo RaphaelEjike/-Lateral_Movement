@@ -115,7 +115,7 @@ This query monitors for the execution of NetSess.exe, which is used to gather se
 
 d) Detecting Tools that Gather Privileged Account Information
 
-- You can monitor for suspicious activity involving tools like PowerShell, BloodHound, or other AD recon tools that are commonly used to gather information about privileged accounts.
+You can monitor for suspicious activity involving tools like PowerShell, BloodHound, or other AD recon tools that are commonly used to gather information about privileged accounts.
 ```
 DeviceProcessEvents
 | where FileName in ("powershell.exe", "sharp.exe", "bloodhound.exe")
@@ -128,6 +128,74 @@ This query tracks the use of PowerShell and other tools like SharpHound (the Blo
 
 ### 4.SSH/RDP/SMB Detection
 - Monitor abnormal SSH, RDP, and SMB file share access logs, especially from non-trusted sources.
+
+a) Monitoring SSH Access
+
+SSH access, especially from unknown or suspicious IP addresses, can be an indicator of malicious activity. For this, you'll monitor successful SSH logins and filter for non-trusted or unusual IPs.
+
+```
+DeviceNetworkEvents
+| where RemotePort == 22  // SSH port
+| where ActionType == "InboundConnectionAccepted" or ActionType == "LogonSuccess"
+| where RemoteIPCountry != "trusted_country"  // Replace with your trusted countries or IP ranges
+| project Timestamp, DeviceName, RemoteIP, InitiatingProcessAccountName, RemotePort, ActionType, Protocol
+
+```
+This query monitors SSH connections and flags them if they originate from non-trusted sources based on the country or specific IP ranges.
+
+
+b) Monitoring RDP Access
+
+RDP (Remote Desktop Protocol) access from non-trusted sources or abnormal users can indicate a potential breach.
+
+```
+DeviceNetworkEvents
+| where RemotePort == 3389  // RDP port
+| where ActionType == "InboundConnectionAccepted" or ActionType == "LogonSuccess"
+| where RemoteIPCountry != "trusted_country"  // Replace with trusted countries or IP ranges
+| project Timestamp, DeviceName, RemoteIP, InitiatingProcessAccountName, RemotePort, ActionType, Protocol
+
+```
+
+c)  Monitoring SMB File Share Access
+
+SMB (Server Message Block) file share access, especially from unusual or non-trusted IPs, can indicate reconnaissance or lateral movement.
+
+```
+DeviceNetworkEvents
+| where RemotePort == 445  // SMB port
+| where ActionType == "FileAccessed" or ActionType == "FileShared"
+| where RemoteIPCountry != "trusted_country"  // Replace with trusted countries or IP ranges
+| project Timestamp, DeviceName, RemoteIP, InitiatingProcessAccountName, FileName, ActionType, RemotePort
+```
+This query tracks SMB file share access and flags it if the access comes from non-trusted sources.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### 5. Ransomware/Destructware Identification
 
@@ -236,6 +304,17 @@ or (FileName == "netsess.exe")
 // Detection for AD tools like BloodHound, SharpHound, and PowerShell Recon
 or (FileName in ("powershell.exe", "sharp.exe", "bloodhound.exe") and CommandLineLower contains "invoke-bloodhound")
 | project Timestamp, DeviceName, InitiatingProcessAccountName, FileName, CommandLine
+
+```
+
+- Detect  SSH, RDP, and SMB Access Monitoring
+
+```
+DeviceNetworkEvents
+| where RemotePort in (22, 3389, 445)  // SSH, RDP, SMB ports
+| where ActionType in ("InboundConnectionAccepted", "LogonSuccess", "FileAccessed", "FileShared")
+| where RemoteIPCountry != "trusted_country"  // Replace with trusted countries or IP ranges
+| project Timestamp, DeviceName, RemoteIP, InitiatingProcessAccountName, FileName, RemotePort, ActionType, Protocol
 
 ```
 
